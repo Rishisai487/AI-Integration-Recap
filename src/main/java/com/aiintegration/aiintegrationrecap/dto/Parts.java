@@ -10,4 +10,6 @@ import lombok.NoArgsConstructor;
 public class Parts {
     private String text;
     private String thoughtSignature;
+    private FunctionCall functionCall;
+    private FunctionResponse functionResponse;
 }
