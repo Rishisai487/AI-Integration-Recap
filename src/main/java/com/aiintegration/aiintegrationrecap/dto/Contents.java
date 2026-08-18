@@ -12,6 +12,6 @@ import java.util.List;
 @NoArgsConstructor
 public class Contents {
     private String role;
-    private List<Parts> parts;
+    private List<Parts> parts=new ArrayList<>();
 
 }
