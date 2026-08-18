@@ -1,28 +1,35 @@
 package com.aiintegration.aiintegrationrecap.services;
 
 import com.aiintegration.aiintegrationrecap.dto.*;
+import com.aiintegration.aiintegrationrecap.models.Messages;
 import com.aiintegration.aiintegrationrecap.tools.ToolService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 @Service
 public class ChatService {
+    List<Contents> contents=new ArrayList<>();
     @Value("${gemini.apiKey}")
     String apiKey;
     private final RestClient restClient;
     public ChatService() {
         this.restClient = RestClient.create();
     }
-    public String callGemini(String prompt) {
-        Parts parts=new Parts();
-        parts.setText(prompt);
-        Contents content=new Contents("user",List.of(parts));
+    public String callGemini(List<Messages> messages) {
+        for(Messages messages1:messages){
+            Parts parts=new Parts();
+            parts.setText(messages1.getMessage());
+            Contents content=new Contents();
+            content.setRole(messages1.getRole());
+            content.getParts().add(parts);
+            contents.add(content);
+        }
         GeminiRequest geminiRequest=new GeminiRequest();
         // Define Safety Settings
         List<SafetySetting> safetySettings = List.of(
@@ -33,7 +40,7 @@ public class ChatService {
         );
 // Attach them to the request payload
         geminiRequest.setSafetySettings(safetySettings);
-        geminiRequest.getContents().add(content);
+        geminiRequest.setContents(contents);
         PropertyDetails propertyDetails1=new PropertyDetails("string");
         Properties properties1=new Properties(Map.of("city",propertyDetails1));
         Properties properties2=new Properties(Map.of());
