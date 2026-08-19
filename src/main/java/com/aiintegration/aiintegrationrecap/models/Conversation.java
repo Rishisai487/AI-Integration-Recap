@@ -15,4 +15,7 @@ public class Conversation {
     private Long id;
     @OneToMany(mappedBy = "conversation",cascade = {CascadeType.PERSIST,CascadeType.MERGE,CascadeType.REMOVE})
     private List<Messages> messages=new ArrayList<>();
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
 }

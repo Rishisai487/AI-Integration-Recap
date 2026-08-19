@@ -2,9 +2,13 @@ package com.aiintegration.aiintegrationrecap.services;
 
 import com.aiintegration.aiintegrationrecap.models.Conversation;
 import com.aiintegration.aiintegrationrecap.models.Messages;
+import com.aiintegration.aiintegrationrecap.models.User;
 import com.aiintegration.aiintegrationrecap.repositories.ConversationRepository;
+import com.aiintegration.aiintegrationrecap.repositories.UserRepository;
+import com.aiintegration.aiintegrationrecap.security.UserDetailsImp;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.WebUtils;
 
@@ -15,21 +19,27 @@ import java.util.Objects;
 public class ConversationService {
     private final ConversationRepository conversationRepository;
     private final ChatService chatService;
+    private final UserRepository userRepository;
 
-    public ConversationService(ConversationRepository conversationRepository, ChatService chatService) {
+    public ConversationService(ConversationRepository conversationRepository, ChatService chatService, UserRepository userRepository) {
         this.conversationRepository = conversationRepository;
         this.chatService = chatService;
+        this.userRepository = userRepository;
     }
 
     public Map<String, Object> getThroughConversation(String prompt, HttpServletRequest request){
         Cookie cookie= WebUtils.getCookie(request,"conversationId");
+        UserDetailsImp userDetailsImp= (UserDetailsImp) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        assert userDetailsImp != null;
+        User user=userRepository.findByUserName(userDetailsImp.getUsername()).orElseThrow(()->new RuntimeException("User doesnt exist!"));
         Conversation conversation;
         if(cookie==null){
             conversation=new Conversation();
+            conversation.setUser(user);
             conversation=conversationRepository.save(conversation);
         }
         else{
-            conversation=conversationRepository.findById(Long.valueOf(cookie.getValue())).orElseThrow(()->new RuntimeException("ConversationId Not Found!!"));
+            conversation=conversationRepository.findByIdAndUser_Id(Long.valueOf(cookie.getValue()),user.getId()).orElseThrow(()->new RuntimeException("ConversationId Not Found!!"));
         }
         Messages messages=new Messages();
         messages.setConversation(conversation);

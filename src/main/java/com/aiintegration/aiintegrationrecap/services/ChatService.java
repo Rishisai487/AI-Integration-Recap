@@ -2,6 +2,7 @@ package com.aiintegration.aiintegrationrecap.services;
 
 import com.aiintegration.aiintegrationrecap.dto.*;
 import com.aiintegration.aiintegrationrecap.models.Messages;
+import com.aiintegration.aiintegrationrecap.tools.ToolRegistry;
 import com.aiintegration.aiintegrationrecap.tools.ToolService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
@@ -65,16 +66,19 @@ public class ChatService {
             String functionCalledFor=functionCall.getName();
             Parts responseParts=new Parts();
             FunctionResponse functionResponse=new FunctionResponse();
-            if(functionCalledFor.equals("getWeather")){
-                String weatherResponse= ToolService.getWeather(functionCall.getArgs().get("city").toString());
-                functionResponse.setName("getWeather");
-                functionResponse.setResponse(Map.of("output",weatherResponse));
-            }
-            else{
-                List<String> productsResponse=ToolService.getProducts();
-                functionResponse.setName("getProducts");
-                functionResponse.setResponse(Map.of("output",productsResponse));
-            }
+            Object toolResponse= ToolRegistry.getTool(functionCalledFor,functionCall.getArgs());
+            functionResponse.setName(functionCalledFor);
+            functionResponse.setResponse(Map.of("output",toolResponse));
+//            if(functionCalledFor.equals("getWeather")){
+//                String weatherResponse= ToolService.getWeather(functionCall.getArgs().get("city").toString());
+//                functionResponse.setName("getWeather");
+//                functionResponse.setResponse(Map.of("output",weatherResponse));
+//            }
+//            else{
+//                List<String> productsResponse=ToolService.getProducts();
+//                functionResponse.setName("getProducts");
+//                functionResponse.setResponse(Map.of("output",productsResponse));
+//            }
             responseParts.setFunctionResponse(functionResponse);
             Contents responseContent=new Contents();
             responseContent.setRole("function");
