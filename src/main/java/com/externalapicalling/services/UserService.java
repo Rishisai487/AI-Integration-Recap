@@ -1,9 +1,12 @@
 package com.externalapicalling.services;
 
+import com.externalapicalling.models.ProductEmbedding;
 import com.externalapicalling.payload.*;
+import com.externalapicalling.repository.ProductEmbeddingRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.*;
 
@@ -23,35 +26,23 @@ public class UserService {
     List<Double> scores=new ArrayList<>();
     List<Products> productsList=new ArrayList<>();
     EmbeddingRequest embeddingRequest =new EmbeddingRequest();
-    Parts parts=new Parts();
-    Contents contents=new Contents();
     @Value("${gemini.api-key}")
     private String apiKey;
-    private String prompt= """
-            Answer the user's question based on the following relevant products.
-            User question:Dosa
-            Relevant products:
-            """;
+    private final ProductEmbeddingRepository productEmbeddingRepository;
     RestClient restClient;
-    public UserService(){
+    public UserService(ProductEmbeddingRepository productEmbeddingRepository){
+        this.productEmbeddingRepository = productEmbeddingRepository;
         this.restClient=RestClient.create();
     }
-    public String getUser(){
-        for(String products : products){
-            Parts parts=new Parts(products);
-            Contents contents=new Contents();
-            contents.setParts(List.of(parts));
-            embeddingRequest.setContent(contents);
-            EmbeddingResponse embeddingResponse= restClient
-                    .post()
-                    .uri("https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent")
-                    .header("x-goog-api-key", apiKey)
-                    .body(embeddingRequest)
-                    .retrieve()
-                    .body(EmbeddingResponse.class);
-            embeddingResponses.add(embeddingResponse);
-        }
-        parts.setText("Dosa");
+    public String getUser(String userPrompt){
+        String promptText= """
+            Answer the user's question based on the following relevant products if they help ,if not relevant say so .
+            User question:%s
+            Relevant products:
+            """.formatted(userPrompt);
+//        System.out.println("USER PROMPT = [" + userPrompt + "]");
+        Parts parts=new Parts(userPrompt);
+        Contents contents=new Contents();
         contents.setParts(List.of(parts));
         embeddingRequest.setContent(contents);
         EmbeddingResponse embeddingResponseFromQuery= restClient
@@ -61,24 +52,25 @@ public class UserService {
                 .body(embeddingRequest)
                 .retrieve()
                 .body(EmbeddingResponse.class);
-        for(int i=0;i<products.size();i++){
-            Double scoreValue=CosineOperation.cosineSimilarity(embeddingResponseFromQuery.getEmbedding().getValues(), embeddingResponses.get(i).getEmbedding().getValues());
-            productsList.add(new Products(products.get(i),scoreValue));
+        float[] values= new float[embeddingResponseFromQuery.getEmbedding().getValues().size()];
+        for (int i=0;i<values.length;i++){
+            values[i]=embeddingResponseFromQuery.getEmbedding().getValues().get(i).floatValue();
         }
-        productsList.sort((a,b)->Double.compare(b.getValues(),a.getValues()));
-        List<Products> topResults=productsList.subList(0,Math.min(3,productsList.size()));
-        for(Products products1:topResults){
-            prompt +=" - "+products1.getProduct()+" \n";
-            System.out.println(prompt);
+        List<ProductEmbedding> topResults=productEmbeddingRepository.findSimilarProducts(Arrays.toString(values));
+//        System.out.println(new ObjectMapper().writeValueAsString(topResults));
+        for(ProductEmbedding productEmbedding:topResults){
+            promptText+=productEmbedding.getProductName()+"\n";
         }
-        Parts parts1=new Parts(prompt);
+        Parts parts1=new Parts(promptText);
+        System.out.println(promptText);
         Contents contents1=new Contents(List.of(parts1));
         GeminiRequest geminiRequest=new GeminiRequest(List.of(contents1));
-        return restClient.post()
+        GeminiResponse geminiResponse=restClient.post()
                 .uri("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent")
                 .header("x-goog-api-key", apiKey)
                 .body(geminiRequest)
                 .retrieve()
-                .body(String.class);
+                .body(GeminiResponse.class);
+        return geminiResponse.getCandidates()[0].getContent().getParts()[0].getText();
     }
 }

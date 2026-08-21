@@ -9,8 +9,8 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
     @Autowired
     UserService userService;
-    @GetMapping
-    public String getUser(){
-        return userService.getUser();
+    @PostMapping
+    public String getUser(@RequestBody String prompt){
+        return userService.getUser(prompt);
     }
 }
